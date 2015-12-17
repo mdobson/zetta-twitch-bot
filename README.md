@@ -11,21 +11,21 @@ It will also stream chat messages from specified channels.
 
 ##How to use
 
-1. Install dependencies with npm
+- Install dependencies with npm
 
 ```
 npm install
 ```
 
-2. Run server
+- Run server
 
 ```
 node server.js
 ```
 
-3. Authenticate with the `connect` transition
-4. Start the bot with the `start` transition
-5. Use the `send` transition to send messages
+- Authenticate with the `connect` transition
+- Start the bot with the `start` transition
+- Use the `send` transition to send messages
 
 
 
