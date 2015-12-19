@@ -15,12 +15,13 @@ TwitchChat.prototype.init = function(config) {
     .when('disconnected', { allow: ['connect']})
     .when('connected', { allow: ['disconnect', 'start']})
     .when('stopped', { allow: ['start', 'disconnect'] })
-    .when('running', { allow: ['send', 'stop', 'disconnect'] })
+    .when('running', { allow: ['send', 'stop', 'disconnect', 'join'] })
     .map('connect', this.connect, [{type: 'text', name: 'username'}, {type: 'text', name: 'token'}, {type: 'text', name: 'channel'}])
     .map('disconnect', this.disconnect)
     .map('start', this.start)
     .map('stop', this.stop)
-    .map('send', this.send, [{type: 'text', name: 'message'}])
+    .map('send', this.send, [{type: 'text', name: 'message'}, {type: 'text', name: 'channel'}])
+    .map('join', this.join, [{type: 'text', name: 'channel'}])
     .stream('messages', function(stream) {
       self._messageStream = stream; 
     });
@@ -30,7 +31,7 @@ TwitchChat.prototype.connect = function(username, token, channel, cb) {
   var self = this;
   var options = {
     options: {
-      debug: true  
+      debug: false
     },
     connection: {
       random: 'chat',
@@ -47,14 +48,16 @@ TwitchChat.prototype.connect = function(username, token, channel, cb) {
   this._client = new irc.client(options);
 
   this._chatListener = function(channel, user, message, self) {
-    console.log(arguments);
     if(self === true) {
       user = this.username;  
+      isOwnerOrMod = false;
     } else {
       if(user['display-name']) {
         user = user['display-name'];
+        isOwnerOrMod = user['user-type'] === 'mod' || user['user-type'] === 'owner' ? true : false;
       } else {
         user = user;  
+        isOwnerOrMod = false;
       }
     }
     if(this._messageStream) {
@@ -63,7 +66,6 @@ TwitchChat.prototype.connect = function(username, token, channel, cb) {
   };
 
   this._client.on('connected', function() {
-    console.log('connected');
     self.state = 'connected';
     cb();
     
@@ -71,8 +73,15 @@ TwitchChat.prototype.connect = function(username, token, channel, cb) {
 
 
   this._client.connect(); 
-  
+};
 
+TwitchChat.prototype.join = function(channel, cb) {
+  var joinPromise = this._client.join(channel);
+  joinPromise.then(function() {
+    cb();
+  }).catch(function(err) {
+    cb(err);
+  });  
 };
 
 TwitchChat.prototype.disconnect = function(cb) {
