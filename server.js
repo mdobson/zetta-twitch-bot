@@ -1,5 +1,5 @@
 var zetta = require('zetta');
-var twitch = require('./twitch');
+var twitch = require('./scout');
 
 zetta()
   .use(twitch)

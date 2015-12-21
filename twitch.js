@@ -2,7 +2,8 @@ var irc = require('tmi.js');
 var Device = require('zetta').Device;
 var util = require('util');
 
-var TwitchChat = module.exports = function() {
+var TwitchChat = module.exports = function(opts) {
+  this._opts = opts || {};
   Device.call(this);  
 }
 util.inherits(TwitchChat, Device);
@@ -25,6 +26,18 @@ TwitchChat.prototype.init = function(config) {
     .stream('messages', function(stream) {
       self._messageStream = stream; 
     });
+
+
+    setTimeout(function() {
+      var opts = self._opts;
+      if(opts && opts.username && opts.token && opts.channel) {
+        self.call('connect', opts.username, opts.token, opts.channel, function(err) {
+          if(err) {
+            console.log('connection error:', err);  
+          } 
+        });  
+      }
+    }, 1000);
 };
 
 TwitchChat.prototype.connect = function(username, token, channel, cb) {
