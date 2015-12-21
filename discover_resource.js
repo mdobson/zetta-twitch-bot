@@ -63,8 +63,17 @@ DiscoverResource.prototype.create = function(env, next) {
       channel: bodyObject.channel 
     }
     
-    self.scout.discover(TwitchBot, botOpts);
-    env.response.statusCode = 201;
-    return next(env);
+    var query = self.scout.server.where({ username: botOpts.username });
+    self.scout.server.find(query, function(err, results) {
+      if(results.length > 0) {
+        self.scout.provision(results[0], TwitchBot, botOpts);
+        env.response.statusCode = 201;
+        return next(env);
+      } else {
+        self.scout.discover(TwitchBot, botOpts);
+        env.response.statusCode = 201;
+        return next(env);
+      }
+    });
   });  
 };

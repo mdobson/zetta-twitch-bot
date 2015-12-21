@@ -80,6 +80,7 @@ TwitchChat.prototype.connect = function(username, token, channel, cb) {
 
   this._client.on('connected', function() {
     self.state = 'connected';
+    self.save();
     cb();
     
   });
