@@ -8,7 +8,7 @@ Twitch.init({clientId: creds.clientId}, function(error, status) {
     $('.twitch-connect').on('click', function() {
       console.log('clicked');
       Twitch.login({
-        scope: ['user_read', 'channel_read']
+        scope: ['user_read', 'channel_read', 'chat_login']
       });  
     });   
   }
