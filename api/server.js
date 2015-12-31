@@ -20,6 +20,42 @@ function formatBotUrl(channel, botId, env) {
   return env.helpers.url.path('/channel/'+channel+'/bot/'+botId); 
 }
 
+function getBotFromAPI(env, next) {
+  var channel = env.route.params.id;
+  var botId = env.route.params.botId; 
+  var query = 'where type="twitch-chat-bot" and channel = "' + channel +'" and id="'+ botId +'"';
+  var targetUrl = formatUrl(query);
+  http.get(targetUrl, function(response) {
+    var buf = [];
+    if(response.statusCode === 200) {
+      response.on('data', function(d) {
+        buf += d;  
+      });
+
+      response.on('end', function() {
+        var body = JSON.parse(buf.toString()); 
+        if(body.entities.length) {
+          var entity = body.entities[0];
+          entity.links.forEach(function(link) {
+            if(link.rel.indexOf('self') > -1) {
+              env.target.url = link.href;  
+              return next(env);
+            }  
+          });  
+        }
+        else {
+          env.response.statusCode = 404;
+          return next(env); 
+        }
+      });  
+    }
+    else {
+      env.response.statusCode = 404;
+      next(env);  
+    }  
+  });
+}
+
 argo()
   .use(router)
   .use(urlHelper)
@@ -69,41 +105,7 @@ argo()
     });
   })
   .get('/channel/{id}/bot/{botId}', function(handle) {
-    handle('request', function(env, next) {
-      var channel = env.route.params.id;
-      var botId = env.route.params.botId; 
-      var query = 'where type="twitch-chat-bot" and channel = "' + channel +'" and id="'+ botId +'"';
-      var targetUrl = formatUrl(query);
-      http.get(targetUrl, function(response) {
-        var buf = [];
-        if(response.statusCode === 200) {
-          response.on('data', function(d) {
-            buf += d;  
-          });
-
-          response.on('end', function() {
-            var body = JSON.parse(buf.toString()); 
-            if(body.entities.length) {
-              var entity = body.entities[0];
-              entity.links.forEach(function(link) {
-                if(link.rel.indexOf('self') > -1) {
-                  env.target.url = link.href;  
-                  return next(env);
-                }  
-              });  
-            }
-            else {
-              env.response.statusCode = 404;
-              return next(env); 
-            }
-          });  
-        }
-        else {
-          env.response.statusCode = 404;
-          next(env);  
-        }  
-      });
-    });
+    handle('request', getBotFromAPI);
 
     handle('response', function(env, next) {
       if(env.target.response.statusCode === 200) {
