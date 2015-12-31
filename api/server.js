@@ -3,6 +3,7 @@ var argo = require('argo');
 var router = require('argo-url-router');
 var urlHelper = require('argo-url-helper');
 var http = require('http');
+var ws = require('ws');
 
 
 function targetPath() {
@@ -56,6 +57,58 @@ function getBotFromAPI(env, next) {
   });
 }
 
+function rewriteBotFromAPI(env, next) {
+  if(env.target.response.statusCode === 200) {
+    var entity = {
+      class: ['bot'],
+      properties: {},
+      actions: [],
+      links: [
+        {
+          rel: ['self'],
+          href: env.helpers.url.current()
+        }
+      ]  
+    }  
+
+    env.target.response.getBody(function(err, body) {
+      body = JSON.parse(body.toString());  
+     
+      entity.properties = body.properties;
+      
+      if(body.actions.length) {
+        body.actions.forEach(function(action) {
+          action.href = formatBotUrl(body.properties.channel, body.properties.id, env);
+          entity.actions.push(action);   
+        }); 
+      } 
+
+      if(body.links.length) {
+        body.links.forEach(function(link) {
+          if(link.title === 'messages') {
+            var linkEntity = {
+              title: 'messages',
+              rel: [
+                'monitor',
+                'http://rels.zork.io/chat'
+              ],
+              href: formatBotUrl(body.properties.channel, body.properties.id, env).replace(/^http/, 'ws')
+            }  
+            entity.links.push(linkEntity);
+          }  
+        });  
+      }
+
+      env.response.statusCode = 200;
+      env.response.body = entity;
+      return next(env);
+    });
+  } else {
+    return next(env);
+  }
+  
+}
+
 argo()
   .use(router)
   .use(urlHelper)
@@ -106,58 +159,11 @@ argo()
   })
   .get('/channel/{id}/bot/{botId}', function(handle) {
     handle('request', getBotFromAPI);
-
-    handle('response', function(env, next) {
-      if(env.target.response.statusCode === 200) {
-        var entity = {
-          class: ['bot'],
-          properties: {},
-          actions: [],
-          links: [
-            {
-              rel: ['self'],
-              href: env.helpers.url.current()
-            }
-          ]  
-        }  
-
-        env.target.response.getBody(function(err, body) {
-          body = JSON.parse(body.toString());  
-         
-          entity.properties = body.properties;
-          
-          if(body.actions.length) {
-            body.actions.forEach(function(action) {
-              action.href = formatBotUrl(body.properties.channel, body.properties.id, env);
-              entity.actions.push(action);   
-            }); 
-          } 
-
-          if(body.links.length) {
-            body.links.forEach(function(link) {
-              if(link.title === 'messages') {
-                var linkEntity = {
-                  title: 'messages',
-                  rel: [
-                    'monitor',
-                    'http://rels.zork.io/chat'
-                  ],
-                  href: formatBotUrl(body.properties.channel, body.properties.id, env).replace(/^http/, 'ws')
-                }  
-                entity.links.push(linkEntity);
-              }  
-            });  
-          }
-
-          env.response.statusCode = 200;
-          env.response.body = entity;
-          return next(env);
-        });
-      } else {
-        return next(env);
-      }
-      
-    });
+    handle('response', rewriteBotFromAPI);
+  })
+  .post('/channel/{id}/bot/{botId}', function(handle) {
+    handle('request', getBotFromAPI);
+    handle('response', rewriteBotFromAPI);  
   })
   .post('/bot/create', function(handle) {
     handle('request', function(env, next) {
