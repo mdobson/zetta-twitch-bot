@@ -4,6 +4,7 @@ var router = require('argo-url-router');
 var urlHelper = require('argo-url-helper');
 var http = require('http');
 var ws = require('ws');
+var url = require('url');
 
 
 function targetPath() {
@@ -19,6 +20,10 @@ function formatUrl(ql) {
 
 function formatBotUrl(channel, botId, env) {
   return env.helpers.url.path('/channel/'+channel+'/bot/'+botId); 
+}
+
+function messagesWebsocketPath(channel, botId, env) {
+  return env.helpers.url.path('/channel/'+channel+'/bot/'+botId + '/events');  
 }
 
 function getBotFromAPI(env, next) {
@@ -86,13 +91,15 @@ function rewriteBotFromAPI(env, next) {
       if(body.links.length) {
         body.links.forEach(function(link) {
           if(link.title === 'messages') {
+            var parsed = url.parse(link.href);
+            var builtUrl = messagesWebsocketPath(body.properties.channel, body.properties.id, env) + parsed.search;
             var linkEntity = {
               title: 'messages',
               rel: [
                 'monitor',
                 'http://rels.zork.io/chat'
               ],
-              href: formatBotUrl(body.properties.channel, body.properties.id, env).replace(/^http/, 'ws')
+              href: builtUrl.replace(/^http/, 'ws')
             }  
             entity.links.push(linkEntity);
           }  
